@@ -174,23 +174,51 @@
       transition: color .15s;
     }
     .share-link:hover { color: var(--text); }
+
+    .lang-toggle {
+      display: flex;
+      gap: 4px;
+      position: absolute;
+      top: 32px;
+      right: 16px;
+    }
+    .lang-btn {
+      background: var(--pill-bg);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      letter-spacing: .3px;
+    }
+    .lang-btn:hover { color: var(--text); }
+    .lang-btn.active {
+      background: var(--accent);
+      border-color: var(--accent-border);
+      color: var(--text);
+    }
+    .container { position: relative; }
   </style>
 </head>
 <body>
   <div class="container">
+    <div class="lang-toggle" id="langToggle"></div>
     <h1>Shiny Secrets</h1>
     <div class="clock" id="clock">—</div>
 
     <div class="card">
-      <div class="section-label">Active servers — <span id="activeDate">—</span></div>
+      <div class="section-label"><span id="labelActive">Active servers</span> — <span id="activeDate">—</span></div>
       <div class="servers" id="servers"></div>
       <div class="actions">
         <button class="btn" id="copyFull" type="button">
-          Copy full
+          <span id="labelCopyFull">Copy full</span>
           <span class="copied" id="copiedFull">Copied!</span>
         </button>
         <button class="btn" id="copyShort" type="button">
-          Copy short
+          <span id="labelCopyShort">Copy short</span>
           <span class="copied" id="copiedShort">Copied!</span>
         </button>
       </div>
@@ -198,12 +226,12 @@
     </div>
 
     <div class="card forecast">
-      <div class="section-label">Coming up</div>
+      <div class="section-label" id="labelComingUp">Coming up</div>
       <div id="forecastBody"></div>
     </div>
 
     <div class="footer">
-      Shareable link: <a class="share-link" id="shareLink" href="#">—</a>
+      <span id="labelShareable">Shareable link</span>: <a class="share-link" id="shareLink" href="#">—</a>
     </div>
   </div>
 
@@ -218,6 +246,89 @@
   // Rotation happens at 02:00 UTC every day (= 00:00 server time, year-round).
   // Using a fixed UTC hour eliminates all DST complexity.
   const ROTATION_HOUR_UTC = 2;
+
+  // ── i18n ──────────────────────────────────────────────
+  const LANGS = {
+    en: {
+      label: "EN",
+      activeServers: "Active servers",
+      copyFull: "Copy full",
+      copyShort: "Copy short",
+      copied: "Copied!",
+      nextRotation: "Next rotation in",
+      comingUp: "Coming up",
+      tomorrow: "Tomorrow",
+      dayAfter: "Day after",
+      shareable: "Shareable link",
+      days: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+    },
+    uk: {
+      label: "UA",
+      activeServers: "Активні сервери",
+      copyFull: "Повне",
+      copyShort: "Коротке",
+      copied: "Скопійовано!",
+      nextRotation: "Наступна ротація через",
+      comingUp: "Далі буде",
+      tomorrow: "Завтра",
+      dayAfter: "Післязавтра",
+      shareable: "Посилання",
+      days: ["Нд","Пн","Вт","Ср","Чт","Пт","Сб"]
+    },
+    fr: {
+      label: "FR",
+      activeServers: "Serveurs actifs",
+      copyFull: "Copie complète",
+      copyShort: "Copie courte",
+      copied: "Copié !",
+      nextRotation: "Prochaine rotation dans",
+      comingUp: "À venir",
+      tomorrow: "Demain",
+      dayAfter: "Après-demain",
+      shareable: "Lien partageable",
+      days: ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"]
+    }
+  };
+
+  let currentLang = localStorage.getItem("lang") || "en";
+
+  function t(key) { return LANGS[currentLang][key]; }
+
+  function applyLang() {
+    document.documentElement.lang = currentLang;
+    document.getElementById("labelActive").textContent = t("activeServers");
+    document.getElementById("labelCopyFull").textContent = t("copyFull");
+    document.getElementById("labelCopyShort").textContent = t("copyShort");
+    document.getElementById("copiedFull").textContent = t("copied");
+    document.getElementById("copiedShort").textContent = t("copied");
+    document.getElementById("labelComingUp").textContent = t("comingUp");
+    document.getElementById("labelShareable").textContent = t("shareable");
+
+    // Update toggle button active states
+    document.querySelectorAll(".lang-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.lang === currentLang);
+    });
+
+    // Re-render dynamic content with new language
+    renderServers();
+  }
+
+  // Build language toggle buttons
+  (function buildLangToggle() {
+    const wrap = document.getElementById("langToggle");
+    Object.keys(LANGS).forEach(code => {
+      const btn = document.createElement("button");
+      btn.className = "lang-btn";
+      btn.dataset.lang = code;
+      btn.textContent = LANGS[code].label;
+      btn.addEventListener("click", () => {
+        currentLang = code;
+        localStorage.setItem("lang", code);
+        applyLang();
+      });
+      wrap.appendChild(btn);
+    });
+  })();
 
   // ── Helpers ───────────────────────────────────────────
   function toUTCms(y, m, d) { return Date.UTC(y, m - 1, d); }
@@ -294,7 +405,7 @@
     // Forecast: tomorrow & day after
     const forecastBody = document.getElementById("forecastBody");
     forecastBody.innerHTML = "";
-    const labels = ["Tomorrow", "Day after"];
+    const labels = [t("tomorrow"), t("dayAfter")];
     for (let i = 1; i <= 2; i++) {
       const fDate = addDays(ymd, i);
       const fServers = serversForDate(fDate);
@@ -326,8 +437,7 @@
 
   function renderClock() {
     const now = new Date();
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const dayName = dayNames[now.getDay()];
+    const dayName = t("days")[now.getDay()];
     const y = now.getFullYear();
     const m = now.getMonth() + 1;
     const d = now.getDate();
@@ -347,7 +457,7 @@
       const rm = Math.floor((totalSecs % 3600) / 60);
       const rs = totalSecs % 60;
       document.getElementById("countdown").innerHTML =
-        `Next rotation in <span>${pad2(rh)}:${pad2(rm)}:${pad2(rs)}</span>`;
+        `${t("nextRotation")} <span>${pad2(rh)}:${pad2(rm)}:${pad2(rs)}</span>`;
     } else {
       document.getElementById("countdown").textContent = "";
     }
@@ -401,7 +511,7 @@
     overrideDate = paramDate;
   }
 
-  renderServers();
+  applyLang();
   renderClock();
   setInterval(renderClock, 1000);
 </script>
