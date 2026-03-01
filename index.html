@@ -215,8 +215,9 @@
     ["81","88","89","90","97","98","99","05","06","07"]
   ];
   const BASE = { y: 2026, m: 2, d: 20 }; // cycle day 0 = group 0
-  const ROTATION_HOUR = 4; // 04:00 Europe/Berlin
-  const TZ = "Europe/Berlin";
+  // Rotation happens at 02:00 UTC every day (= 00:00 server time, year-round).
+  // Using a fixed UTC hour eliminates all DST complexity.
+  const ROTATION_HOUR_UTC = 2;
 
   // ── Helpers ───────────────────────────────────────────
   function toUTCms(y, m, d) { return Date.UTC(y, m - 1, d); }
@@ -246,33 +247,12 @@
     return n <= 14 ? `14${pad2(n)}` : `13${s}`;
   }
 
-  // Get current date/time in Europe/Berlin
-  function berlinNow() {
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: TZ,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-      hour12: false
-    }).formatToParts(now);
-
-    const get = (type) => parts.find(p => p.type === type).value;
-    return {
-      y: parseInt(get("year")),
-      m: parseInt(get("month")),
-      d: parseInt(get("day")),
-      h: parseInt(get("hour")),
-      min: parseInt(get("minute")),
-      sec: parseInt(get("second")),
-      ts: now
-    };
-  }
-
-  // Effective rotation date (before 04:00 Berlin = previous day)
+  // Effective rotation date: before 02:00 UTC = previous day's servers
   function effectiveDate() {
-    const b = berlinNow();
-    let ymd = formatYMD(b.y, b.m, b.d);
-    if (b.h < ROTATION_HOUR) {
+    const now = new Date();
+    const uh = now.getUTCHours();
+    let ymd = formatYMD(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate());
+    if (uh < ROTATION_HOUR_UTC) {
       ymd = addDays(ymd, -1);
     }
     return ymd;
@@ -329,29 +309,43 @@
     }
   }
 
+  // Next rotation: next occurrence of 02:00 UTC (trivial with fixed UTC)
+  function nextRotationMs() {
+    const now = Date.now();
+    const d = new Date(now);
+    const todayRotation = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), ROTATION_HOUR_UTC);
+    return now < todayRotation ? todayRotation : todayRotation + 86400000;
+  }
+
+  // Get user's local timezone abbreviation (e.g. EST, CET, CEST)
+  function localTZAbbr() {
+    return new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+      .formatToParts(new Date())
+      .find(p => p.type === "timeZoneName").value;
+  }
+
   function renderClock() {
-    const b = berlinNow();
+    const now = new Date();
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const dt = new Date(toUTCms(b.y, b.m, b.d));
-    const dayName = dayNames[dt.getUTCDay()];
+    const dayName = dayNames[now.getDay()];
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const d = now.getDate();
+    const h = now.getHours();
+    const min = now.getMinutes();
+    const sec = now.getSeconds();
+    const tz = localTZAbbr();
 
     document.getElementById("clock").innerHTML =
-      `<span>${dayName}, ${formatYMD(b.y, b.m, b.d)}</span> &nbsp;${pad2(b.h)}:${pad2(b.min)}:${pad2(b.sec)} Berlin time`;
+      `<span>${dayName}, ${formatYMD(y, m, d)}</span> &nbsp;${pad2(h)}:${pad2(min)}:${pad2(sec)} ${tz}`;
 
     // Countdown to next rotation
     if (!overrideDate) {
-      let nextH = ROTATION_HOUR;
-      let secsLeft;
-      const currentSecs = b.h * 3600 + b.min * 60 + b.sec;
-      const rotationSecs = nextH * 3600;
-      if (currentSecs < rotationSecs) {
-        secsLeft = rotationSecs - currentSecs;
-      } else {
-        secsLeft = (24 * 3600 - currentSecs) + rotationSecs;
-      }
-      const rh = Math.floor(secsLeft / 3600);
-      const rm = Math.floor((secsLeft % 3600) / 60);
-      const rs = secsLeft % 60;
+      const msLeft = Math.max(0, nextRotationMs() - now.getTime());
+      const totalSecs = Math.floor(msLeft / 1000);
+      const rh = Math.floor(totalSecs / 3600);
+      const rm = Math.floor((totalSecs % 3600) / 60);
+      const rs = totalSecs % 60;
       document.getElementById("countdown").innerHTML =
         `Next rotation in <span>${pad2(rh)}:${pad2(rm)}:${pad2(rs)}</span>`;
     } else {
