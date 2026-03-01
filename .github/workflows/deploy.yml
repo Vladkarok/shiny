@@ -2,14 +2,8 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "public/**"
-      - "Dockerfile"
-      - "nginx.conf"
-      - "Caddyfile"
-      - "caddy.Dockerfile"
-      - "docker-compose.yml"
+    tags:
+      - "v*.*.*"
 
 jobs:
   deploy:
