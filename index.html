@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Shiny Secrets — Today's Servers</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
   <style>
     :root {
       --bg: #0b0f17;
@@ -399,8 +400,9 @@
     const shareLink = document.getElementById("shareLink");
     const shareUrl = new URL(location.href);
     shareUrl.searchParams.set("date", ymd);
-    shareLink.href = shareUrl.toString();
-    shareLink.textContent = shareUrl.toString();
+    shareLinkUrl = shareUrl.toString();
+    shareLink.href = shareLinkUrl;
+    shareLink.textContent = shareLinkUrl;
 
     // Forecast: tomorrow & day after
     const forecastBody = document.getElementById("forecastBody");
@@ -472,24 +474,27 @@
   }
 
   // ── Copy ──────────────────────────────────────────────
+  async function clipCopy(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+  }
+
   function copyText(text, indicatorId) {
     const indicator = document.getElementById(indicatorId);
-    (async () => {
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        const t = document.createElement("textarea");
-        t.value = text;
-        t.style.position = "fixed";
-        t.style.opacity = "0";
-        document.body.appendChild(t);
-        t.select();
-        document.execCommand("copy");
-        document.body.removeChild(t);
-      }
+    clipCopy(text).then(() => {
       indicator.classList.add("show");
       setTimeout(() => indicator.classList.remove("show"), 1200);
-    })();
+    });
   }
 
   document.getElementById("copyFull").addEventListener("click", () => {
@@ -502,6 +507,19 @@
   document.getElementById("copyShort").addEventListener("click", () => {
     const servers = serversForDate(getDisplayDate());
     copyText(servers.join("/"), "copiedShort");
+  });
+
+  // Shareable link: copy on click, flash "Copied!" text
+  let shareLinkUrl = "";
+  document.getElementById("shareLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!shareLinkUrl) return;
+    const link = document.getElementById("shareLink");
+    const original = link.textContent;
+    clipCopy(shareLinkUrl).then(() => {
+      link.textContent = t("copied");
+      setTimeout(() => { link.textContent = original; }, 1500);
+    });
   });
 
   // ── Init ──────────────────────────────────────────────
