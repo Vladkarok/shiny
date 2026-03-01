@@ -7,7 +7,7 @@ RUN rm /etc/nginx/conf.d/default.conf /usr/share/nginx/html/*
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy static site
-COPY public/index.html /usr/share/nginx/html/index.html
+COPY public/ /usr/share/nginx/html/
 
 # Run as non-root
 RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx \
