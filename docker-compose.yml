@@ -23,10 +23,14 @@ services:
       - "443:443"
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - STATS_USER=${STATS_USER}
+      - STATS_PASSWORD_HASH=${STATS_PASSWORD_HASH}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_logs:/var/log/caddy
+      - goaccess_report:/var/www/goaccess:ro
     security_opt:
       - no-new-privileges:true
     networks:
@@ -34,9 +38,38 @@ services:
     depends_on:
       - web
 
+  goaccess:
+    image: allinurl/goaccess:latest
+    restart: unless-stopped
+    entrypoint: ""
+    command: >
+      sh -c "
+      while [ ! -f /var/log/caddy/access.log ]; do sleep 1; done;
+      tail -F /var/log/caddy/access.log |
+      /usr/bin/goaccess
+      --log-format CADDY
+      -o /var/www/goaccess/report.html
+      --real-time-html
+      --ws-url=wss://1387.vladkarok.pp.ua/ws
+      --port 7890
+      --date-spec=hr
+      --ping-interval=30
+      -"
+    volumes:
+      - caddy_logs:/var/log/caddy:ro
+      - goaccess_report:/var/www/goaccess
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+    depends_on:
+      - caddy
+
 volumes:
   caddy_data:
   caddy_config:
+  caddy_logs:
+  goaccess_report:
 
 networks:
   internal:

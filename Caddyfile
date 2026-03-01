@@ -3,8 +3,6 @@
 		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
 	}
 
-	reverse_proxy web:8080
-
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		X-Content-Type-Options "nosniff"
@@ -14,7 +12,28 @@
 	}
 
 	log {
-		output stdout
-		format console
+		output file /var/log/caddy/access.log {
+			roll_size 10MiB
+			roll_keep 7
+			roll_keep_for 168h
+		}
+		format json
+	}
+
+	handle /ws {
+		reverse_proxy goaccess:7890
+	}
+
+	handle /stats* {
+		basicauth {
+			{$STATS_USER} {$STATS_PASSWORD_HASH}
+		}
+		root * /var/www/goaccess
+		rewrite /stats /report.html
+		file_server
+	}
+
+	handle {
+		reverse_proxy web:8080
 	}
 }
