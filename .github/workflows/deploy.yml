@@ -21,5 +21,6 @@ jobs:
             cd ~/shiny
             git fetch --tags
             git checkout ${{ github.ref_name }}
+            sed -i 's/__VERSION__/${{ github.ref_name }}/' public/index.html
             docker compose build web
             docker compose up -d web
