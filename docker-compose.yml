@@ -1,0 +1,43 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:uid=101,gid=101
+      - /var/run:uid=101,gid=101
+      - /tmp:uid=101,gid=101
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+
+  caddy:
+    build:
+      context: .
+      dockerfile: caddy.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:
+    driver: bridge
