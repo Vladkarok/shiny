@@ -19,6 +19,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd ~/shiny
+            git restore .
             git fetch --tags
             git checkout ${{ github.ref_name }}
             sed -i 's/__VERSION__/${{ github.ref_name }}/' public/index.html
