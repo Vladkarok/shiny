@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shiny Secrets — Today's Servers</title>
+  <style>
+    :root {
+      --bg: #0b0f17;
+      --card: #121a27;
+      --text: #e8eefc;
+      --muted: #7b8fad;
+      --border: rgba(255,255,255,.07);
+      --accent: rgba(125,211,252,.18);
+      --accent-border: rgba(125,211,252,.32);
+      --pill-bg: rgba(255,255,255,.05);
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(ellipse 1100px 700px at 15% 0%, #111d2e 0%, var(--bg) 60%) fixed;
+      color: var(--text);
+      line-height: 1.4;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      padding: 32px 16px 48px;
+    }
+    .container {
+      width: 100%;
+      max-width: 560px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: .15px;
+      margin-bottom: 4px;
+    }
+    .clock {
+      font-size: 13px;
+      color: var(--muted);
+      font-feature-settings: "tnum" 1;
+      margin-bottom: 20px;
+    }
+    .clock span { color: var(--text); font-weight: 600; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.3);
+    }
+    .card + .card { margin-top: 14px; }
+
+    .section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .servers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .server {
+      background: var(--pill-bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 7px 12px;
+      min-width: 54px;
+      text-align: center;
+      font-weight: 650;
+      font-size: 14px;
+      font-feature-settings: "tnum" 1;
+      letter-spacing: .3px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      background: var(--accent);
+      color: var(--text);
+      border: 1px solid var(--accent-border);
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+      position: relative;
+    }
+    .btn:hover { background: rgba(125,211,252,.26); }
+    .btn:active { transform: scale(.97); }
+    .btn .copied {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(52,211,153,.2);
+      border-radius: 10px;
+      font-weight: 600;
+      color: #6ee7b7;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .15s;
+    }
+    .btn .copied.show { opacity: 1; }
+
+    .countdown {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 12px;
+      font-feature-settings: "tnum" 1;
+    }
+    .countdown span { color: var(--text); font-weight: 600; }
+
+    /* Forecast */
+    .forecast { margin-top: 0; }
+    .forecast-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .forecast-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .forecast-row:first-child { padding-top: 0; }
+    .forecast-date {
+      font-size: 13px;
+      font-weight: 600;
+      min-width: 100px;
+      font-feature-settings: "tnum" 1;
+      flex-shrink: 0;
+    }
+    .forecast-label {
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+    .forecast-servers {
+      font-size: 12px;
+      color: var(--muted);
+      font-feature-settings: "tnum" 1;
+      word-break: break-all;
+    }
+
+    .footer {
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      opacity: .7;
+    }
+    .share-link {
+      color: var(--muted);
+      text-decoration: none;
+      background: rgba(255,255,255,.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      word-break: break-all;
+      transition: color .15s;
+    }
+    .share-link:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Shiny Secrets</h1>
+    <div class="clock" id="clock">—</div>
+
+    <div class="card">
+      <div class="section-label">Active servers — <span id="activeDate">—</span></div>
+      <div class="servers" id="servers"></div>
+      <div class="actions">
+        <button class="btn" id="copyFull" type="button">
+          Copy full
+          <span class="copied" id="copiedFull">Copied!</span>
+        </button>
+        <button class="btn" id="copyShort" type="button">
+          Copy short
+          <span class="copied" id="copiedShort">Copied!</span>
+        </button>
+      </div>
+      <div class="countdown" id="countdown"></div>
+    </div>
+
+    <div class="card forecast">
+      <div class="section-label">Coming up</div>
+      <div id="forecastBody"></div>
+    </div>
+
+    <div class="footer">
+      Shareable link: <a class="share-link" id="shareLink" href="#">—</a>
+    </div>
+  </div>
+
+<script>
+  // ── Data ──────────────────────────────────────────────
+  const GROUPS = [
+    ["82","83","84","91","92","93","94","00","01","02","09","10","11"],
+    ["85","86","87","95","96","03","04","12","13","14"],
+    ["81","88","89","90","97","98","99","05","06","07"]
+  ];
+  const BASE = { y: 2026, m: 2, d: 20 }; // cycle day 0 = group 0
+  const ROTATION_HOUR = 4; // 04:00 Europe/Berlin
+  const TZ = "Europe/Berlin";
+
+  // ── Helpers ───────────────────────────────────────────
+  function toUTCms(y, m, d) { return Date.UTC(y, m - 1, d); }
+  function pad2(n) { return String(n).padStart(2, "0"); }
+  function formatYMD(y, m, d) { return `${y}-${pad2(m)}-${pad2(d)}`; }
+
+  function parseYMD(s) {
+    const [y, m, d] = s.split("-").map(Number);
+    return { y, m, d };
+  }
+
+  function addDays(ymd, n) {
+    const { y, m, d } = parseYMD(ymd);
+    const dt = new Date(toUTCms(y, m, d) + n * 86400000);
+    return formatYMD(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+  }
+
+  function serversForDate(ymd) {
+    const { y, m, d } = parseYMD(ymd);
+    const diff = Math.floor((toUTCms(y, m, d) - toUTCms(BASE.y, BASE.m, BASE.d)) / 86400000);
+    const idx = ((diff % 3) + 3) % 3;
+    return GROUPS[idx];
+  }
+
+  function fullNumber(s) {
+    const n = parseInt(s, 10);
+    return n <= 14 ? `14${pad2(n)}` : `13${s}`;
+  }
+
+  // Get current date/time in Europe/Berlin
+  function berlinNow() {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: TZ,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour12: false
+    }).formatToParts(now);
+
+    const get = (type) => parts.find(p => p.type === type).value;
+    return {
+      y: parseInt(get("year")),
+      m: parseInt(get("month")),
+      d: parseInt(get("day")),
+      h: parseInt(get("hour")),
+      min: parseInt(get("minute")),
+      sec: parseInt(get("second")),
+      ts: now
+    };
+  }
+
+  // Effective rotation date (before 04:00 Berlin = previous day)
+  function effectiveDate() {
+    const b = berlinNow();
+    let ymd = formatYMD(b.y, b.m, b.d);
+    if (b.h < ROTATION_HOUR) {
+      ymd = addDays(ymd, -1);
+    }
+    return ymd;
+  }
+
+  // ── Rendering ─────────────────────────────────────────
+  let currentEffective = null;
+  let overrideDate = null; // from URL param
+
+  function getDisplayDate() {
+    return overrideDate || effectiveDate();
+  }
+
+  function renderServers() {
+    const ymd = getDisplayDate();
+    currentEffective = ymd;
+    const servers = serversForDate(ymd);
+
+    // Active date label
+    document.getElementById("activeDate").textContent = ymd;
+
+    // Server pills
+    const wrap = document.getElementById("servers");
+    wrap.innerHTML = "";
+    servers.forEach(s => {
+      const el = document.createElement("div");
+      el.className = "server";
+      el.textContent = fullNumber(s);
+      wrap.appendChild(el);
+    });
+
+    // Shareable link
+    const shareLink = document.getElementById("shareLink");
+    const shareUrl = new URL(location.href);
+    shareUrl.searchParams.set("date", ymd);
+    shareLink.href = shareUrl.toString();
+    shareLink.textContent = shareUrl.toString();
+
+    // Forecast: tomorrow & day after
+    const forecastBody = document.getElementById("forecastBody");
+    forecastBody.innerHTML = "";
+    const labels = ["Tomorrow", "Day after"];
+    for (let i = 1; i <= 2; i++) {
+      const fDate = addDays(ymd, i);
+      const fServers = serversForDate(fDate);
+      const row = document.createElement("div");
+      row.className = "forecast-row";
+      row.innerHTML = `
+        <span class="forecast-label">${labels[i - 1]}</span>
+        <span class="forecast-date">${fDate}</span>
+        <span class="forecast-servers">${fServers.map(fullNumber).join(" / ")}</span>
+      `;
+      forecastBody.appendChild(row);
+    }
+  }
+
+  function renderClock() {
+    const b = berlinNow();
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dt = new Date(toUTCms(b.y, b.m, b.d));
+    const dayName = dayNames[dt.getUTCDay()];
+
+    document.getElementById("clock").innerHTML =
+      `<span>${dayName}, ${formatYMD(b.y, b.m, b.d)}</span> &nbsp;${pad2(b.h)}:${pad2(b.min)}:${pad2(b.sec)} Berlin time`;
+
+    // Countdown to next rotation
+    if (!overrideDate) {
+      let nextH = ROTATION_HOUR;
+      let secsLeft;
+      const currentSecs = b.h * 3600 + b.min * 60 + b.sec;
+      const rotationSecs = nextH * 3600;
+      if (currentSecs < rotationSecs) {
+        secsLeft = rotationSecs - currentSecs;
+      } else {
+        secsLeft = (24 * 3600 - currentSecs) + rotationSecs;
+      }
+      const rh = Math.floor(secsLeft / 3600);
+      const rm = Math.floor((secsLeft % 3600) / 60);
+      const rs = secsLeft % 60;
+      document.getElementById("countdown").innerHTML =
+        `Next rotation in <span>${pad2(rh)}:${pad2(rm)}:${pad2(rs)}</span>`;
+    } else {
+      document.getElementById("countdown").textContent = "";
+    }
+
+    // Auto-update: check if effective date changed
+    if (!overrideDate) {
+      const eff = effectiveDate();
+      if (eff !== currentEffective) {
+        renderServers();
+      }
+    }
+  }
+
+  // ── Copy ──────────────────────────────────────────────
+  function copyText(text, indicatorId) {
+    const indicator = document.getElementById(indicatorId);
+    (async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const t = document.createElement("textarea");
+        t.value = text;
+        t.style.position = "fixed";
+        t.style.opacity = "0";
+        document.body.appendChild(t);
+        t.select();
+        document.execCommand("copy");
+        document.body.removeChild(t);
+      }
+      indicator.classList.add("show");
+      setTimeout(() => indicator.classList.remove("show"), 1200);
+    })();
+  }
+
+  document.getElementById("copyFull").addEventListener("click", () => {
+    const ymd = getDisplayDate();
+    const servers = serversForDate(ymd);
+    const text = `${ymd}: ${servers.map(fullNumber).join("/")}`;
+    copyText(text, "copiedFull");
+  });
+
+  document.getElementById("copyShort").addEventListener("click", () => {
+    const servers = serversForDate(getDisplayDate());
+    copyText(servers.join("/"), "copiedShort");
+  });
+
+  // ── Init ──────────────────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  const paramDate = params.get("date");
+  if (paramDate && /^\d{4}-\d{2}-\d{2}$/.test(paramDate)) {
+    overrideDate = paramDate;
+  }
+
+  renderServers();
+  renderClock();
+  setInterval(renderClock, 1000);
+</script>
+</body>
+</html>
