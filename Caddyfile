@@ -21,7 +21,7 @@
 	}
 
 	handle /ws {
-		reverse_proxy goaccess:7890
+		reverse_proxy goaccess:443
 	}
 
 	handle /stats* {
