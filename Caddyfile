@@ -25,7 +25,14 @@
 	}
 
 	handle /stats* {
-		basicauth {
+		rate_limit {
+			zone stats_zone {
+				key {remote_host}
+				events 10
+				window 1m
+			}
+		}
+		basic_auth {
 			{$STATS_USER} {$STATS_PASSWORD_HASH}
 		}
 		root * /var/www/goaccess
@@ -34,6 +41,7 @@
 	}
 
 	handle {
+		header Content-Security-Policy "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'self'"
 		reverse_proxy web:8080
 	}
 }
