@@ -67,6 +67,7 @@ services:
       --port=443
       --date-spec=hr
       --ping-interval=30
+      --html-prefs='{"theme":"darkGray","perPage":10,"layout":"horizontal","showTables":true,"visitors":{"columns":{"hits":{"hide":false},"avgts":{"hide":false},"cumts":{"hide":false},"maxts":{"hide":false}}},"requests":{"columns":{"hits":{"hide":false},"avgts":{"hide":false},"cumts":{"hide":false},"maxts":{"hide":false}}}}'
       -"
     volumes:
       - caddy_logs:/var/log/caddy:ro
