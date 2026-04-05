@@ -1,8 +1,6 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/vladkarok/shiny-web:${IMAGE_TAG}
     restart: unless-stopped
     read_only: true
     mem_limit: 128m
@@ -18,9 +16,7 @@ services:
       - internal
 
   caddy:
-    build:
-      context: .
-      dockerfile: caddy.Dockerfile
+    image: ghcr.io/vladkarok/shiny-caddy:${IMAGE_TAG}
     restart: unless-stopped
     mem_limit: 256m
     cap_drop:
