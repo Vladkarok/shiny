@@ -43,6 +43,7 @@ services:
       - no-new-privileges:true
     networks:
       - internal
+      - proxy
     depends_on:
       - web
 
@@ -88,3 +89,5 @@ volumes:
 networks:
   internal:
     driver: bridge
+  proxy:
+    external: true
