@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/vladkarok/shiny-web:${IMAGE_TAG}
+    image: ghcr.io/vladkarok/shiny-web:${IMAGE_TAG:-latest}
     restart: unless-stopped
     read_only: true
     mem_limit: 128m
@@ -12,78 +12,5 @@ services:
       - /tmp:uid=101,gid=101
     security_opt:
       - no-new-privileges:true
-    networks:
-      - internal
-
-  caddy:
-    image: ghcr.io/vladkarok/shiny-caddy:${IMAGE_TAG}
-    restart: unless-stopped
-    mem_limit: 256m
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
     ports:
-      - "443:443"
-    environment:
-      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
-      - STATS_USER=${STATS_USER}
-      - STATS_PASSWORD_HASH=${STATS_PASSWORD_HASH}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - caddy_logs:/var/log/caddy
-      - goaccess_report:/var/www/goaccess:ro
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - internal
-      - proxy
-    depends_on:
-      - web
-
-  goaccess:
-    image: allinurl/goaccess:latest
-    restart: unless-stopped
-    mem_limit: 64m
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    entrypoint: ""
-    command: >
-      sh -c "
-      while [ ! -f /var/log/caddy/access.log ]; do sleep 1; done;
-      tail -F /var/log/caddy/access.log |
-      /usr/bin/goaccess
-      --log-format CADDY
-      -o /var/www/goaccess/report.html
-      --real-time-html
-      --ws-url=wss://1387.vladkarok.pp.ua/ws
-      --port=443
-      --date-spec=hr
-      --ping-interval=30
-      --html-prefs='{\"theme\":\"darkGray\",\"perPage\":10,\"layout\":\"horizontal\",\"showTables\":true,\"visitors\":{\"columns\":{\"hits\":{\"hide\":false},\"avgts\":{\"hide\":false},\"cumts\":{\"hide\":false},\"maxts\":{\"hide\":false}}},\"requests\":{\"columns\":{\"hits\":{\"hide\":false},\"avgts\":{\"hide\":false},\"cumts\":{\"hide\":false},\"maxts\":{\"hide\":false}}}}'
-      -"
-    volumes:
-      - caddy_logs:/var/log/caddy:ro
-      - goaccess_report:/var/www/goaccess
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - internal
-    depends_on:
-      - caddy
-
-volumes:
-  caddy_data:
-  caddy_config:
-  caddy_logs:
-  goaccess_report:
-
-networks:
-  internal:
-    driver: bridge
-  proxy:
-    external: true
+      - "10.0.88.3:8080:8080"

@@ -8,7 +8,7 @@ Every day a different set of servers has active Shiny Secret tasks. The rotation
 
 | URL | Host |
 |---|---|
-| [1387.vladkarok.pp.ua](https://1387.vladkarok.pp.ua) | Oracle Cloud (Docker) |
+| [1387.vladkarok.pp.ua](https://1387.vladkarok.pp.ua) | Self-hosted VM (Docker), fronted by a separate Caddy reverse proxy |
 | [shiny.vladkarok.pp.ua](https://shiny.vladkarok.pp.ua) | Cloudflare Pages |
 
 ## Features
@@ -42,21 +42,19 @@ Rotation happens at **02:00 UTC** daily (midnight server time).
 
 ### Self-hosted (Docker)
 
+The app container serves the static site on port 8080 over plain HTTP. TLS termination, HSTS, and any reverse-proxy concerns live on a separate Caddy host — this repo no longer ships a Caddy image or Caddyfile.
+
 ```bash
-# Clone and configure
 git clone https://github.com/vladkarok/shiny.git
 cd shiny
-cp .env.example .env
-# Edit .env and add your Cloudflare API token
-
-# Start
-docker compose up -d
+IMAGE_TAG=latest docker compose up -d
 ```
 
+The compose file binds nginx to `10.0.88.3:8080` (LAN-only); adjust `ports:` for your network. Point your reverse proxy at `http://<this-host>:8080`.
+
 Requires:
-- Docker with Compose
-- A Cloudflare-managed domain (for DNS-01 ACME challenge)
-- Port 443 open
+- Docker with Compose v2
+- A reverse proxy elsewhere if you want HTTPS
 
 ### Cloudflare Pages
 
@@ -72,11 +70,13 @@ The entire app is `public/index.html`. Open it directly in a browser -- it works
 
 ## CI/CD
 
-Pushes to `main` trigger a GitHub Actions workflow that:
-1. Copies updated files to the Oracle Cloud server via SCP
-2. Rebuilds and restarts the web container
+Tags matching `v*.*.*` trigger `.github/workflows/deploy.yml`:
+1. `build` job (GitHub-hosted) builds the `shiny-web` image and pushes to GHCR.
+2. `deploy` job (self-hosted runner labeled `shiny`) `scp`s `docker-compose.yml` to the app VM and runs `docker compose pull && up -d`.
 
-Cloudflare Pages auto-deploys from the `public/` directory on every push.
+The workflow also supports `workflow_dispatch` for manual redeploys of an existing image tag without rebuilding.
+
+Cloudflare Pages auto-deploys from the `public/` directory on every push to `main`.
 
 ## Project structure
 
@@ -86,13 +86,10 @@ shiny/
 │   └── index.html           # The entire app (single file)
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml        # GitHub Actions CD to Oracle Cloud
-├── Dockerfile                # Nginx Alpine for static serving
-├── nginx.conf                # Nginx config (port 8080, security headers)
-├── caddy.Dockerfile          # Caddy + Cloudflare DNS plugin
-├── Caddyfile                 # HTTPS reverse proxy config
-├── docker-compose.yml        # Orchestration
-├── .env.example              # Template for secrets
+│       └── deploy.yml       # Build to GHCR + deploy via self-hosted runner
+├── Dockerfile               # Nginx Alpine for static serving
+├── nginx.conf               # Nginx config (port 8080, security headers)
+├── docker-compose.yml       # web service only; LAN-bound
 └── README.md
 ```
 
