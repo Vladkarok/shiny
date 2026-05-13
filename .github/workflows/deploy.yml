@@ -65,30 +65,15 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Copy docker-compose.yml to vprojects
-        run: |
-          set -euo pipefail
-          ssh -o BatchMode=yes vprojects 'mkdir -p ~/shiny'
-          scp -o BatchMode=yes docker-compose.yml vprojects:~/shiny/docker-compose.yml
-
-      - name: Pull and restart shiny on vprojects
+      - name: Deploy to vprojects
         env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USER: ${{ github.repository_owner }}
-          IMAGE_TAG: ${{ github.event.inputs.image_tag || github.ref_name }}
+          LC_GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LC_GHCR_USER: ${{ github.repository_owner }}
+          LC_IMAGE_TAG: ${{ github.event.inputs.image_tag || github.ref_name }}
         run: |
           set -euo pipefail
-          ssh -o BatchMode=yes vprojects \
-            GHCR_TOKEN="$GHCR_TOKEN" \
-            GHCR_USER="$GHCR_USER" \
-            IMAGE_TAG="$IMAGE_TAG" \
-            bash -s <<'REMOTE'
-          set -euo pipefail
-          cd ~/shiny
-          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-          export IMAGE_TAG
-          docker compose pull
-          docker compose up -d --remove-orphans
-          docker image prune -f
-          docker compose ps
-          REMOTE
+          ssh -o BatchMode=yes \
+              -o SendEnv=LC_IMAGE_TAG \
+              -o SendEnv=LC_GHCR_USER \
+              -o SendEnv=LC_GHCR_TOKEN \
+              vprojects < docker-compose.yml
