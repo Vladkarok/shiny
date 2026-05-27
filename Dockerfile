@@ -16,3 +16,8 @@ RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx \
 USER nginx
 
 EXPOSE 8080
+
+# `wget` ships in nginx:alpine via busybox; -q for quiet, -O- discards body.
+# Hits the root path so a misconfigured server (404 on /) is also caught.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -q -O- http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1
